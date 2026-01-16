@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe Nutricional Personalizado - IA</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jsPDF Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --color-primary: #10B981;
+            --color-secondary: #059669;
+            --color-background: #F9FAFB;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-background);
+        }
+
+        .spinner-dot {
+            animation: bounce 1s infinite;
+        }
+        .spinner-dot:nth-child(2) { animation-delay: 0.2s; }
+        .spinner-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+        }
+
+        .pdf-content {
+            padding: 20px;
+            background-color: white;
+        }
+        
+        /* Estilos específicos para PDF */
+        .pdf-export .day-content {
+            display: block !important;
+        }
+        
+        .pdf-export .meal-plan-item {
+            page-break-inside: avoid;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <main class="min-h-screen">
+        
+        <header class="bg-gradient-to-r from-green-500 to-teal-600 text-white shadow-lg">
+            <div class="container mx-auto px-6 py-20 text-center">
+                <h1 class="text-5xl md:text-6xl font-extrabold mb-4 tracking-tight">
+                    Informe Nutricional Personalizado
+                </h1>
+                <p class="text-xl md:text-2xl font-light opacity-90">
+                    Plan de alimentación semanal con alta variedad de ingredientes y nutrientes.
+                </p>
+            </div>
+        </header>
+
+        <div class="container mx-auto px-4 md:px-6 py-12">
+            
+            <section id="input-section" class="mb-12">
+                <div class="max-w-xl mx-auto bg-white p-6 md:p-10 rounded-xl shadow-2xl border border-gray-100">
+                    <h2 class="text-3xl font-bold mb-6 text-gray-800 border-b pb-3">
+                        Datos Personales y Objetivo
+                    </h2>
+                    <form id="inputForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="age" class="block text-sm font-medium text-gray-700 mb-1">Edad (años)</label>
+                            <input type="number" id="age" name="age" min="15" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500" placeholder="Ej: 30">
+                        </div>
+                        <div>
+                            <label for="weight" class="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
+                            <input type="number" id="weight" name="weight" step="0.1" min="30" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500" placeholder="Ej: 75.5">
+                        </div>
+                        <div>
+                            <label for="height" class="block text-sm font-medium text-gray-700 mb-1">Altura (cm)</label>
+                            <input type="number" id="height" name="height" min="100" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500" placeholder="Ej: 175">
+                        </div>
+                        <div>
+                            <label for="activity" class="block text-sm font-medium text-gray-700 mb-1">Actividad Física</label>
+                            <select id="activity" name="activity" required class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-emerald-500 focus:border-emerald-500">
+                                <option value="" disabled selected>Selecciona</option>
+                                <option value="sedentary">Sedentario (Poco ejercicio)</option>
+                                <option value="moderate">Moderado (3-5 días/sem)</option>
+                                <option value="active">Activo (6-7 días/sem)</option>
+                            </select>
+                        </div>
+                        <div class="col-span-1 md:col-span-2">
+                            <label for="goal" class="block text-sm font-medium text-gray-700 mb-1">Objetivo Nutricional</label>
+                            <select id="goal" name="goal" required class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-emerald-500 focus:border-emerald-500">
+                                <option value="" disabled selected>Selecciona tu meta</option>
+                                <option value="perder peso">Perder Peso de forma saludable</option>
+                                <option value="mantener peso">Mantener Peso y tonificar</option>
+                                <option value="ganar músculo">Ganar Músculo (Hipertrofia)</option>
+                            </select>
+                        </div>
+                        <div class="col-span-1 md:col-span-2 mt-4">
+                            <button type="submit" id="generateButton" class="w-full bg-emerald-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-emerald-600 transition duration-300 transform hover:scale-[1.01] shadow-lg disabled:opacity-50">
+                                Generar Informe Nutricional Variado
+                            </button>
+                            <div id="error-message" class="mt-3 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg hidden"></div>
+                        </div>
+                    </form>
+                </div>
+                
+                <div id="results-card" class="max-w-xl mx-auto mt-6 bg-white p-6 md:p-8 rounded-xl shadow-xl border border-blue-100 hidden">
+                    <h3 class="text-2xl font-bold mb-4 text-blue-700 text-center">Tus Métricas Actuales</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
+                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">IMC (Masa Corporal)</p>
+                            <p id="bmi-value" class="text-3xl font-black text-blue-900">-</p>
+                            <p id="bmi-status" class="text-sm font-bold mt-1">-</p>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
+                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">TMB (Calorías Base)</p>
+                            <p id="bmr-value" class="text-3xl font-black text-blue-900">-</p>
+                            <p class="text-xs text-blue-600 mt-1">kcal diarias estimadas</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="loading-indicator" class="text-center py-16 hidden">
+                <div class="flex justify-center space-x-2 mb-4">
+                    <span class="spinner-dot w-4 h-4 bg-emerald-500 rounded-full"></span>
+                    <span class="spinner-dot w-4 h-4 bg-emerald-500 rounded-full"></span>
+                    <span class="spinner-dot w-4 h-4 bg-emerald-500 rounded-full"></span>
+                </div>
+                <p class="text-xl font-semibold text-gray-600">Diseñando un menú variado y equilibrado...</p>
+            </section>
+
+            <section id="report-output" class="hidden">
+                <div class="flex flex-col md:flex-row justify-between items-center max-w-4xl mx-auto mb-8 gap-4">
+                    <h2 class="text-4xl font-extrabold text-gray-800">Tu Plan de Bienestar</h2>
+                    <button id="downloadPdfBtn" class="bg-gray-800 text-white px-6 py-2 rounded-lg flex items-center hover:bg-black transition-colors shadow-md">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Descargar PDF
+                    </button>
+                </div>
+
+                <div id="pdf-container">
+                    <div id="summary-section" class="max-w-4xl mx-auto mb-10 bg-white p-6 md:p-8 rounded-xl shadow-xl border-t-4 border-emerald-500"></div>
+                    <div id="meal-plan-section" class="max-w-4xl mx-auto space-y-8"></div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // CONFIGURACIÓN DE API
+        
+        
+        const form = document.getElementById('inputForm');
+        const generateButton = document.getElementById('generateButton');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const errorMessage = document.getElementById('error-message');
+        const reportOutput = document.getElementById('report-output');
+        const summarySection = document.getElementById('summary-section');
+        const mealPlanSection = document.getElementById('meal-plan-section');
+        const downloadBtn = document.getElementById('downloadPdfBtn');
+        
+        const resultsCard = document.getElementById('results-card');
+        const bmiValue = document.getElementById('bmi-value');
+        const bmiStatus = document.getElementById('bmi-status');
+        const bmrValue = document.getElementById('bmr-value');
+
+	let currentData = null;
+
+        const cleanTextForPDF = (text) => {
+            if (!text) return '';
+            // Eliminar Markdown agresivamente para el PDF plano de jsPDF
+            return text.replace(/\*\*/g, '')
+                       .replace(/\*/g, '')
+                       .replace(/^- /gm, '• ')
+                       .trim();
+        };
+	
+        const formatText = (text) => {
+            if (!text) return '';
+            return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                       .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                       .replace(/^- (.*)/gm, '<li class="ml-4 list-disc mb-1">$1</li>');
+        };
+        
+        window.toggleDay = (dayIndex) => {
+            const content = document.getElementById(`day-content-${dayIndex}`);
+            const icon = document.getElementById(`day-toggle-icon-${dayIndex}`);
+            content.classList.toggle('hidden');
+            icon.classList.toggle('rotate-90');
+        };
+
+        const getBMIInfo = (bmi) => {
+            if (bmi < 18.5) return { text: "Bajo Peso", color: "text-blue-600" };
+            if (bmi < 25) return { text: "Normal", color: "text-green-600" };
+            if (bmi < 30) return { text: "Sobrepeso", color: "text-yellow-600" };
+            if (bmi < 35) return { text: "Obesidad Grado I", color: "text-orange-600" };
+            if (bmi < 40) return { text: "Obesidad Grado II", color: "text-red-600" };
+            return { text: "Obesidad Grado III", color: "text-red-800" };
+        };
+
+        const calculateMetrics = () => {
+            const weight = parseFloat(document.getElementById('weight').value);
+            const height = parseFloat(document.getElementById('height').value);
+            const age = parseInt(document.getElementById('age').value);
+
+            if (weight > 0 && height > 0 && age > 0) {
+                const bmi = (weight / ((height/100)**2)).toFixed(1);
+                const bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+                
+                bmiValue.textContent = bmi;
+                const info = getBMIInfo(parseFloat(bmi));
+                bmiStatus.textContent = info.text;
+                bmiStatus.className = `text-sm font-bold mt-1 ${info.color}`;
+                bmrValue.textContent = `${Math.round(bmr).toLocaleString('es-ES')}`;
+                resultsCard.classList.remove('hidden');
+            } else {
+                resultsCard.classList.add('hidden');
+            }
+        };
+
+        ['weight', 'height', 'age'].forEach(id => document.getElementById(id).addEventListener('input', calculateMetrics));
+
+        const renderSummary = (summary) => {
+            summarySection.innerHTML = `
+                <h3 class="text-2xl font-bold text-emerald-600 mb-4">Estrategia Nutricional</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-700">
+                    <div class="p-4 bg-green-50 rounded-lg border-l-4 border-emerald-500">
+                        <p class="font-bold mb-1">🎯 Objetivo Principal:</p>
+                        <p class="text-sm">${formatText(summary.goal)}</p>
+                    </div>
+                    <div class="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                        <p class="font-bold mb-1">🥗 Enfoque de Variedad:</p>
+                        <p class="text-sm">${formatText(summary.caloric_focus)}</p>
+                    </div>
+                </div>
+                <div class="mt-4 p-4 bg-amber-50 rounded-lg border-l-4 border-amber-500">
+                    <p class="font-bold text-amber-800 text-sm">⚠️ Recomendación Profesional:</p>
+                    <p class="text-sm text-amber-900 italic">${formatText(summary.warning)}</p>
+                </div>`;
+        };
+
+        const renderMealPlan = (mealPlan) => {
+            mealPlanSection.innerHTML = mealPlan.map((dayPlan, index) => `
+                <div class="meal-plan-item bg-white rounded-xl shadow-md border-t-4 border-emerald-500 overflow-hidden">
+                    <button onclick="toggleDay(${index})" class="w-full text-left p-4 flex justify-between items-center hover:bg-gray-50 transition-colors">
+                        <h4 class="text-xl font-bold text-gray-800">${dayPlan.day}</h4>
+                        <div class="flex items-center gap-2">
+                             <span class="text-xs font-medium px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full">Menú Completo</span>
+                             <svg id="day-toggle-icon-${index}" class="w-5 h-5 text-emerald-500 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </div>
+                    </button>
+                    <div id="day-content-${index}" class="day-content p-5 pt-0 hidden border-t bg-gray-50/30"> 
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                            <div class="bg-white p-3 rounded-lg shadow-sm">
+                                <p class="font-bold text-emerald-700 flex items-center mb-2">
+                                    <span class="mr-2">🍳</span> Desayuno
+                                </p>
+                                <div class="text-sm text-gray-600">${formatText(dayPlan.breakfast)}</div>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg shadow-sm">
+                                <p class="font-bold text-emerald-700 flex items-center mb-2">
+                                    <span class="mr-2">🥗</span> Almuerzo
+                                </p>
+                                <div class="text-sm text-gray-600">${formatText(dayPlan.lunch)}</div>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg shadow-sm">
+                                <p class="font-bold text-emerald-700 flex items-center mb-2">
+                                    <span class="mr-2">🍽️</span> Cena
+                                </p>
+                                <div class="text-sm text-gray-600">${formatText(dayPlan.dinner)}</div>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg shadow-sm">
+                                <p class="font-bold text-emerald-700 flex items-center mb-2">
+                                    <span class="mr-2">🍎</span> Snacks y Media Mañana
+                                </p>
+                                <div class="text-sm text-gray-600">${formatText(dayPlan.snacks)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`).join('');
+        };
+
+	async function fetchWithRetry(payload) {
+	    try {
+            	const response = await fetch('/api/chat', { // Llamada a tu carpeta secreta api/
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Error ${response.status}`);
+                }
+
+                return response.json();
+            } catch (error) {
+            	console.error("Error en la comunicación:", error);
+            	throw error;
+            }
+    	}
+
+        // LÓGICA DE PDF USANDO jsPDF DIRECTO
+        const downloadPdf = () => {
+            if (!currentData) return;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'portrait'
+            });
+
+            const margin = 25.4; // 1 pulgada
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const contentWidth = pageWidth - (margin * 2);
+            let cursorY = margin;
+
+            const addText = (text, size, style = 'normal', color = [0, 0, 0]) => {
+                doc.setFont('times', style);
+                doc.setFontSize(size);
+                doc.setTextColor(color[0], color[1], color[2]);
+                
+                const lines = doc.splitTextToSize(text, contentWidth);
+                
+                // Verificar salto de página
+                if (cursorY + (lines.length * (size * 0.4)) > doc.internal.pageSize.getHeight() - margin) {
+                    doc.addPage();
+                    cursorY = margin;
+                }
+
+                doc.text(lines, margin, cursorY);
+                cursorY += (lines.length * (size * 0.45)) + 2;
+            };
+
+            const addLine = () => {
+                doc.setDrawColor(0);
+                doc.setLineWidth(0.5);
+                doc.line(margin, cursorY, pageWidth - margin, cursorY);
+                cursorY += 7;
+            };
+
+            // 1. Título
+            addText("Plan Nutricional", 26, 'bold', [0, 100, 0]);
+            cursorY += 2;
+            addLine();
+
+            // 2. Perfil
+            addText("I. Perfil Personalizado", 16, 'bold');
+            addText(`Peso: ${document.getElementById('weight').value} kg | Altura: ${document.getElementById('height').value} cm`, 13);
+            addText(`IMC: ${bmiValue.textContent} (${bmiStatus.textContent})`, 13);
+            addText(`Objetivo: ${currentData.summary.goal}`, 13);
+            cursorY += 5;
+
+            // 3. Estrategia
+            addText("II. Estrategia Sugerida", 16, 'bold');
+            addText(cleanTextForPDF(currentData.summary.caloric_focus), 13);
+            cursorY += 2;
+            addText("Aviso:", 12, 'bold', [100, 0, 0]);
+            addText(cleanTextForPDF(currentData.summary.warning), 11, 'italic', [100, 0, 0]);
+            cursorY += 5;
+
+            // 4. Menús
+            addText("III. Planificación Semanal", 16, 'bold');
+            addLine();
+
+            currentData.meal_plan.forEach(day => {
+                // Título del Día
+                addText(day.day.toUpperCase(), 14, 'bold', [50, 50, 50]);
+                
+                // Comidas
+                const meals = [
+                    { label: "Desayuno: ", content: day.breakfast },
+                    { label: "Almuerzo: ", content: day.lunch },
+                    { label: "Cena: ", content: day.dinner },
+                    { label: "Snacks: ", content: day.snacks }
+                ];
+
+                meals.forEach(meal => {
+                    doc.setFont('times', 'bold');
+                    doc.setFontSize(13);
+                    doc.text(meal.label, margin, cursorY);
+                    
+                    doc.setFont('times', 'normal');
+                    const textContent = cleanTextForPDF(meal.content);
+                    const lines = doc.splitTextToSize(textContent, contentWidth - 30);
+                    
+                    doc.text(lines, margin + 30, cursorY);
+                    cursorY += Math.max(lines.length * 5, 7);
+
+                    // Verificar salto de página dentro del bucle de comidas
+                    if (cursorY > doc.internal.pageSize.getHeight() - margin) {
+                        doc.addPage();
+                        cursorY = margin;
+                    }
+                });
+                
+                cursorY += 5;
+                doc.setDrawColor(200);
+                doc.setLineWidth(0.1);
+                doc.line(margin, cursorY, pageWidth - margin, cursorY);
+                cursorY += 8;
+            });
+
+            // Pie de página final
+            if (cursorY > doc.internal.pageSize.getHeight() - 20) {
+                doc.addPage();
+                cursorY = margin;
+            }
+            addText("Documento generado informativamente. No sustituye asesoría médica.", 9, 'italic', [100, 100, 100]);
+
+            doc.save('Plan_Nutricional_Oficial.pdf');
+        };
+
+        downloadBtn.addEventListener('click', downloadPdf);
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setUIState(true);
+            errorMessage.classList.add('hidden');
+
+            const systemPrompt = "Eres un nutricionista experto en gastronomía saludable. Genera un plan de 7 días con ALTA VARIEDAD de ingredientes (no repetir el mismo desayuno o cena más de dos veces por semana). Incluye legumbres, pescados, carnes magras, semillas y cereales integrales como quinoa, avena o centeno. Responde estrictamente en formato JSON.";
+            
+            const userQuery = `Usuario: Edad ${form.age.value}, Peso ${form.weight.value}kg, Altura ${form.height.value}cm, Actividad ${form.activity.value}, Objetivo ${form.goal.value}. Por favor, incluye platos creativos y evita la monotonía.`;
+
+            const responseSchema = {
+                type: "OBJECT",
+                properties: {
+                    summary: {
+                        type: "OBJECT",
+                        properties: {
+                            goal: { type: "STRING" },
+                            caloric_focus: { type: "STRING" },
+                            warning: { type: "STRING" }
+                        }
+                    },
+                    meal_plan: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                day: { type: "STRING" },
+                                breakfast: { type: "STRING" },
+                                lunch: { type: "STRING" },
+                                dinner: { type: "STRING" },
+                                snacks: { type: "STRING" }
+                            }
+                        }
+                    }
+                }
+            };
+
+            let retries = 0;
+            const maxRetries = 5;
+            const delays = [1000, 2000, 4000, 8000, 16000];
+
+            const callApi = async () => {
+                try {
+                    const result = await fetchWithRetry({
+                        contents: [{ parts: [{ text: userQuery }] }],
+                        systemInstruction: { parts: [{ text: systemPrompt }] },
+                        generationConfig: {
+                            responseMimeType: "application/json", 
+                            responseSchema: responseSchema,
+                            temperature: 0.8 // Más temperatura para mayor creatividad/variedad
+                        }
+                        
+                    });
+
+                    const textResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!textResponse) throw new Error("EMPTY_RESPONSE");
+
+                    const data = JSON.parse(textResponse);
+                
+                    renderSummary(data.summary);
+                    renderMealPlan(data.meal_plan);
+                    reportOutput.classList.remove('hidden');
+                    reportOutput.scrollIntoView({ behavior: 'smooth' });
+                    setUIState(false);
+
+	      	} catch (error) {
+                    // Lógica de reintentos (mantener igual)
+                    if (retries < maxRetries) {
+                    	setTimeout(() => {
+                            retries++;
+                            callApi();
+                        }, delays[retries]);
+                    } else {
+                    	errorMessage.textContent = "Error al generar el plan. Inténtalo de nuevo.";
+                    	errorMessage.classList.remove('hidden');
+                    	setUIState(false);
+                    }
+            	}
+            };
+
+            callApi();
+        });
+
+        const setUIState = (isLoading) => {
+            generateButton.disabled = isLoading;
+            loadingIndicator.classList.toggle('hidden', !isLoading);
+            if(isLoading) reportOutput.classList.add('hidden');
+            generateButton.innerText = isLoading ? "Generando variedad..." : "Generar Informe Nutricional Variado";
+        };
+    </script>
+</body>
+</html>
