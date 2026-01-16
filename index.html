@@ -170,7 +170,7 @@
         const bmiStatus = document.getElementById('bmi-status');
         const bmrValue = document.getElementById('bmr-value');
 
-	let currentData = null;
+		let currentData = null;
 
         const cleanTextForPDF = (text) => {
             if (!text) return '';
@@ -477,6 +477,8 @@
                     if (!textResponse) throw new Error("EMPTY_RESPONSE");
 
                     const data = JSON.parse(textResponse);
+
+					currentData = data;
                 
                     renderSummary(data.summary);
                     renderMealPlan(data.meal_plan);
@@ -510,4 +512,5 @@
         };
     </script>
 </body>
+
 </html>
